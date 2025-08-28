@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 const SPLINE_SRC = 'https://unpkg.com/@splinetool/viewer@latest/build/spline-viewer.js';
-const SCENE_URL = 'https://prod.spline.design/00xeECdZSAQfgZTz/scene.splinecode';
+const SCENE_URL = 'https://prod.spline.design/lPQWVz0-YjXtZ-eo/scene.splinecode';
 
 function useSplineViewer() {
   const [ready, setReady] = useState(false);
@@ -13,14 +13,21 @@ function useSplineViewer() {
     if (existing) {
       if (customElements.get('spline-viewer')) setReady(true);
       else existing.addEventListener('load', onReady, { once: true });
-      return;
+    } else {
+      const script = document.createElement('script');
+      script.src = SPLINE_SRC;
+      script.async = true;
+      script.crossOrigin = 'anonymous';
+      script.addEventListener('load', onReady, { once: true });
+      document.head.appendChild(script);
     }
-    const script = document.createElement('script');
-    script.src = SPLINE_SRC;
-    script.async = true;
-    script.crossOrigin = 'anonymous';
-    script.addEventListener('load', onReady, { once: true });
-    document.head.appendChild(script);
+
+    // performance: preconnect to Spline asset domain
+    const preconnect = document.createElement('link');
+    preconnect.rel = 'preconnect';
+    preconnect.href = 'https://prod.spline.design';
+    preconnect.crossOrigin = 'anonymous';
+    document.head.appendChild(preconnect);
   }, []);
 
   return ready;
@@ -31,10 +38,9 @@ export default function Hero() {
   const [showFallback, setShowFallback] = useState(false);
   const viewerRef = useRef(null);
 
-  // Fallback if loading takes too long
   useEffect(() => {
     if (!ready) {
-      const to = setTimeout(() => setShowFallback(true), 3500);
+      const to = setTimeout(() => setShowFallback(true), 3000);
       return () => clearTimeout(to);
     }
     setShowFallback(false);
@@ -42,13 +48,14 @@ export default function Hero() {
 
   return (
     <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden" aria-label="Hero">
-      {/* Layer 1: Spline Background (base layer) */}
-      <div className="absolute inset-0 z-0">
+      {/* Spline Background */}
+      <div className="absolute inset-0 z-0 pointer-events-auto">
         {ready && !showFallback ? (
           // eslint-disable-next-line react/no-unknown-property
           <spline-viewer
             ref={viewerRef}
             url={SCENE_URL}
+            events-target="document"
             style={{ width: '100%', height: '100%', display: 'block', background: 'transparent' }}
             loading-anim="true"
           />
@@ -67,10 +74,10 @@ export default function Hero() {
         )}
       </div>
 
-      {/* Layer 2: Subtle scene glow */}
+      {/* Subtle scene glow (no pointer capture) */}
       <div className="pointer-events-none absolute inset-0 z-5 bg-[radial-gradient(1200px_600px_at_50%_-100px,rgba(255,255,255,0.08),transparent_60%)]" />
 
-      {/* Layer 3: Contrast overlay to ensure readability */}
+      {/* Contrast overlay for readability (no pointer capture) */}
       <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-black/20 via-black/45 to-black" />
 
       {/* Content */}
