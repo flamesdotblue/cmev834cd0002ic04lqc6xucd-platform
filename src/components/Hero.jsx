@@ -7,16 +7,19 @@ function useSplineViewer() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    const onReady = () => setReady(true);
+
     const existing = document.querySelector(`script[src="${SPLINE_SRC}"]`);
     if (existing) {
       if (customElements.get('spline-viewer')) setReady(true);
-      else existing.addEventListener('load', () => setReady(true), { once: true });
+      else existing.addEventListener('load', onReady, { once: true });
       return;
     }
     const script = document.createElement('script');
     script.src = SPLINE_SRC;
     script.async = true;
-    script.addEventListener('load', () => setReady(true), { once: true });
+    script.crossOrigin = 'anonymous';
+    script.addEventListener('load', onReady, { once: true });
     document.head.appendChild(script);
   }, []);
 
@@ -25,44 +28,53 @@ function useSplineViewer() {
 
 export default function Hero() {
   const ready = useSplineViewer();
-  const [viewerVisible, setViewerVisible] = useState(true);
-  const containerRef = useRef(null);
+  const [showFallback, setShowFallback] = useState(false);
+  const viewerRef = useRef(null);
 
   // Fallback if loading takes too long
   useEffect(() => {
-    const to = setTimeout(() => {
-      if (!ready) setViewerVisible(false);
-    }, 3500);
-    return () => clearTimeout(to);
+    if (!ready) {
+      const to = setTimeout(() => setShowFallback(true), 3500);
+      return () => clearTimeout(to);
+    }
+    setShowFallback(false);
   }, [ready]);
 
   return (
     <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden" aria-label="Hero">
-      {/* Background base */}
-      <div className="absolute inset-0 bg-[radial-gradient(1200px_600px_at_50%_-100px,rgba(255,255,255,0.08),transparent_60%)]" />
-
-      {/* Spline background */}
-      <div ref={containerRef} className="absolute inset-0 -z-10">
-        {ready && viewerVisible ? (
+      {/* Layer 1: Spline Background (base layer) */}
+      <div className="absolute inset-0 z-0">
+        {ready && !showFallback ? (
           // eslint-disable-next-line react/no-unknown-property
-          <spline-viewer url={SCENE_URL} style={{ width: '100%', height: '100%' }} loading-anim="false"></spline-viewer>
+          <spline-viewer
+            ref={viewerRef}
+            url={SCENE_URL}
+            style={{ width: '100%', height: '100%', display: 'block', background: 'transparent' }}
+            loading-anim="true"
+          />
         ) : (
-          <div className="absolute inset-0 -z-10">
-            {/* Fallback particle-like shader using gradients */}
-            <div className="w-full h-full opacity-60" style={{
-              backgroundImage:
-                'repeating-linear-gradient(0deg, rgba(255,255,255,0.06) 0, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 6px), repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 6px)'
-            }} />
+          <div className="absolute inset-0">
+            {/* Fallback particle-like grid */}
+            <div
+              className="w-full h-full opacity-60"
+              style={{
+                backgroundImage:
+                  'repeating-linear-gradient(0deg, rgba(255,255,255,0.06) 0, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 6px), repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 6px)'
+              }}
+            />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_60%,rgba(255,255,255,0.08),transparent_60%)] animate-pulse" />
           </div>
         )}
       </div>
 
-      {/* Overlay gradient for contrast */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black" />
+      {/* Layer 2: Subtle scene glow */}
+      <div className="pointer-events-none absolute inset-0 z-5 bg-[radial-gradient(1200px_600px_at_50%_-100px,rgba(255,255,255,0.08),transparent_60%)]" />
+
+      {/* Layer 3: Contrast overlay to ensure readability */}
+      <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-black/20 via-black/45 to-black" />
 
       {/* Content */}
-      <div className="relative z-10 mx-auto max-w-7xl px-4 pt-24 pb-24 sm:pt-28 lg:pt-32 text-center">
+      <div className="relative z-20 mx-auto max-w-7xl px-4 pt-24 pb-24 sm:pt-28 lg:pt-32 text-center">
         <h1 className="text-4xl sm:text-6xl lg:text-7xl font-semibold tracking-tight">
           The Web’s Most Daring
           <span className="block text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60">Experiences</span>
@@ -93,8 +105,8 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* Subtle scanline shimmer */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/5 to-transparent" />
+      {/* Top shimmer */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-32 bg-gradient-to-b from-white/5 to-transparent" />
     </section>
   );
 }
